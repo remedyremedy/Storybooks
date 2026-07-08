@@ -3,468 +3,396 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Why is the Sky Blue?</title>
+<title>Storybook</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Nunito:wght@300;400&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden}
+  body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+       user-select:none;-webkit-user-select:none;touch-action:none}
 
-  :root {
-    --bg: #0f0e0c;
-    --gold: #c9a96e;
-    --gold-dim: rgba(201,169,110,0.18);
-    --gold-border: rgba(201,169,110,0.45);
-    --text: #e8dcc8;
-    --muted: rgba(232,220,200,0.45);
-    --btn-bg: rgba(255,255,255,0.07);
-    --btn-border: rgba(255,255,255,0.13);
+  /* ---------- top control bar ---------- */
+  #bar{
+    position:fixed;top:0;left:0;right:0;z-index:20;
+    display:flex;align-items:center;gap:6px;
+    padding:calc(env(safe-area-inset-top) + 8px) 10px 8px;
+    background:linear-gradient(rgba(0,0,0,.75),transparent);
+  }
+  #bar .title{
+    flex:1;font-size:.85rem;font-weight:600;color:rgba(255,255,255,.85);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px;
+  }
+  .btn{
+    min-width:40px;height:40px;padding:0 10px;border:none;border-radius:20px;
+    background:rgba(255,255,255,.15);color:#fff;font-size:1.05rem;line-height:40px;
+    text-align:center;cursor:pointer;backdrop-filter:blur(6px);
+  }
+  .btn.on{background:rgba(90,170,255,.55)}
+  .btn:focus-visible{outline:2px solid #ffd58a}
+  a.btn{display:inline-block;text-decoration:none}
+
+  /* ---------- page area ---------- */
+  #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  #zoomWrap{will-change:transform;transform-origin:0 0}
+  #pageImg{max-width:100vw;max-height:100vh;display:block;pointer-events:none}
+  /* placeholder for missing page images */
+  #pagePh{
+    display:none;width:82vw;max-width:420px;aspect-ratio:3/4;border-radius:10px;
+    align-items:center;justify-content:center;text-align:center;padding:20px;
+    font-size:1.05rem;font-weight:600;color:#223;line-height:1.4;
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); font-family: 'Lora', Georgia, serif; color: var(--text); }
-  #app { width: 100%; height: 100dvh; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+  /* ---------- bottom: dots + hint ---------- */
+  #bottom{
+    position:fixed;left:0;right:0;bottom:0;z-index:20;text-align:center;
+    padding:10px 12px calc(env(safe-area-inset-bottom) + 12px);
+    background:linear-gradient(transparent,rgba(0,0,0,.7));
+    pointer-events:none;
+  }
+  #dots{display:flex;justify-content:center;flex-wrap:wrap;gap:5px;pointer-events:auto}
+  #dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.3);cursor:pointer}
+  #dots i.cur{background:#ffd58a;transform:scale(1.35)}
+  #hint{font-size:.7rem;color:rgba(255,255,255,.45);margin-top:8px}
 
-  #topbar {
-    position: absolute; top: 0; left: 0; right: 0; z-index: 20;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 16px 20px;
-    background: linear-gradient(to bottom, rgba(15,14,12,0.97) 60%, transparent);
-    pointer-events: none;
+  /* ---------- arrow buttons (larger screens / accessibility) ---------- */
+  .arrow{
+    position:fixed;top:50%;transform:translateY(-50%);z-index:15;
+    width:44px;height:64px;border:none;border-radius:10px;
+    background:rgba(255,255,255,.10);color:rgba(255,255,255,.7);font-size:1.5rem;cursor:pointer;
   }
-  #topbar > * { pointer-events: all; }
-  #page-label { font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 300; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-  #controls { display: flex; gap: 8px; align-items: center; }
-  .btn {
-    display: flex; align-items: center; gap: 5px;
-    background: var(--btn-bg); border: 1px solid var(--btn-border);
-    color: var(--muted); border-radius: 8px; padding: 7px 10px;
-    cursor: pointer; font-size: 12px; font-family: 'Nunito', sans-serif;
-    letter-spacing: 0.05em; transition: all 0.2s ease; outline: none;
-  }
-  .btn.active { background: var(--gold-dim); border-color: var(--gold-border); color: var(--gold); }
+  #prevBtn{left:6px} #nextBtn{right:6px}
 
-  #img-area {
-    flex: 1; display: flex; align-items: center; justify-content: center;
-    overflow: hidden; position: relative; touch-action: none;
+  /* ---------- table of contents overlay ---------- */
+  #toc{
+    position:fixed;inset:0;z-index:30;display:none;flex-direction:column;
+    background:rgba(10,12,28,.96);padding:calc(env(safe-area-inset-top) + 14px) 14px 14px;
   }
-  #img-area img {
-    max-width: 100%; max-height: 100%; display: block;
-    touch-action: none; user-select: none; -webkit-user-drag: none;
-    transform-origin: center center;
-    transition: opacity 0.2s ease;
-    pointer-events: none;
+  #toc.open{display:flex}
+  #toc header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  #toc h2{font-size:1.05rem}
+  #tocGrid{
+    flex:1;overflow-y:auto;display:grid;gap:10px;
+    grid-template-columns:repeat(auto-fill,minmax(88px,1fr));
+    padding-bottom:20px;touch-action:pan-y;
   }
-  #img-area img.fade { opacity: 0; }
+  .tocItem{border:none;background:none;color:#fff;cursor:pointer;text-align:center;padding:0}
+  .tocItem .thumb{
+    aspect-ratio:3/4;border-radius:6px;overflow:hidden;background:#26304f;
+    display:flex;align-items:center;justify-content:center;font-size:.8rem;color:rgba(255,255,255,.6);
+    border:2px solid transparent;
+  }
+  .tocItem.cur .thumb{border-color:#ffd58a}
+  .tocItem img{width:100%;height:100%;object-fit:cover;display:block}
+  .tocItem span{display:block;font-size:.68rem;margin-top:4px;color:rgba(255,255,255,.7)}
 
-  /* Left/right tap zones — invisible, sit on top of image */
-  #tap-left, #tap-right {
-    position: absolute; top: 0; bottom: 0; z-index: 5;
-    cursor: pointer;
+  /* ---------- error screen ---------- */
+  #err{
+    position:fixed;inset:0;z-index:40;display:none;flex-direction:column;gap:14px;
+    align-items:center;justify-content:center;text-align:center;padding:30px;background:#131a3d;
   }
-  #tap-left  { left: 0;   width: 25%; }
-  #tap-right { right: 0;  width: 75%; }
-
-  #hint {
-    position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
-    background: rgba(0,0,0,0.65); color: var(--text); font-family: 'Nunito', sans-serif;
-    font-size: 12px; padding: 7px 16px; border-radius: 20px;
-    letter-spacing: 0.04em; white-space: nowrap; pointer-events: none; z-index: 10;
-    animation: fadeout 4s ease forwards;
-  }
-  @keyframes fadeout { 0%,65%{opacity:1} 100%{opacity:0} }
-
-  #soundbars {
-    position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
-    display: none; gap: 4px; align-items: flex-end; pointer-events: none; z-index: 10;
-  }
-  #soundbars.visible { display: flex; }
-  .bar { width: 4px; border-radius: 2px; background: var(--gold); animation: bounce 0.5s ease-in-out infinite alternate; }
-  @keyframes bounce { from{transform:scaleY(0.4)} to{transform:scaleY(1)} }
-
-  #toast {
-    position: absolute; top: 65px; left: 50%; transform: translateX(-50%);
-    background: rgba(30,20,10,0.92); border: 1px solid var(--gold-border);
-    color: var(--gold); font-family: 'Nunito', sans-serif;
-    font-size: 12px; padding: 7px 16px; border-radius: 20px;
-    white-space: nowrap; pointer-events: none; z-index: 25;
-    opacity: 0; transition: opacity 0.3s ease;
-  }
-  #toast.show { opacity: 1; }
-
-  #bottombar {
-    position: absolute; bottom: 0; left: 0; right: 0; z-index: 20;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 20px 28px;
-    background: linear-gradient(to top, rgba(15,14,12,0.97) 60%, transparent);
-    pointer-events: none;
-  }
-  #bottombar > * { pointer-events: all; }
-  .nav-btn {
-    width: 50px; height: 50px; border-radius: 50%;
-    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.65); display: flex; align-items: center; justify-content: center;
-    cursor: pointer; transition: all 0.2s ease; outline: none;
-  }
-  .nav-btn:disabled { color: rgba(255,255,255,0.12); cursor: default; }
-  #dots { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; justify-content: center; max-width: 180px; }
-  .dot { height: 7px; border-radius: 4px; background: rgba(255,255,255,0.2); cursor: pointer; transition: all 0.3s ease; flex-shrink: 0; }
-  .dot.active { background: var(--gold); width: 20px !important; }
-
-  #toc-overlay {
-    position: absolute; inset: 0; z-index: 30;
-    background: rgba(10,9,8,0.97);
-    display: none; flex-direction: column; overflow: hidden;
-  }
-  #toc-overlay.open { display: flex; }
-  #toc-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 20px 20px 12px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-  }
-  #toc-header h2 { font-family: 'Lora', serif; font-size: 18px; font-weight: 400; color: var(--text); }
-  #toc-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 26px; line-height: 1; padding: 4px 8px; outline: none; }
-  #toc-list { flex: 1; overflow-y: auto; padding: 8px 0; }
-  .toc-item {
-    display: flex; align-items: center; gap: 14px;
-    padding: 14px 20px; cursor: pointer;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    transition: background 0.15s ease;
-  }
-  .toc-item:active { background: rgba(255,255,255,0.05); }
-  .toc-item.current { background: var(--gold-dim); }
-  .toc-num { font-family: 'Nunito', sans-serif; font-size: 11px; color: var(--muted); letter-spacing: 0.08em; min-width: 30px; }
-  .toc-label { font-family: 'Lora', serif; font-size: 15px; color: var(--text); }
-  .toc-item.current .toc-label { color: var(--gold); }
+  #err a{color:#ffd58a}
 </style>
 </head>
 <body>
-<div id="app">
 
-  <div id="topbar">
-    <span id="page-label">Cover</span>
-    <div id="controls">
-      <button class="btn" id="btn-toc" onclick="toggleTOC()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-        <span>Pages</span>
-      </button>
-      <button class="btn" id="btn-sound" onclick="toggleSound()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
-        </svg>
-        <span>Sound</span>
-      </button>
-      <button class="btn" id="btn-auto" onclick="toggleAutoplay()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" id="auto-icon"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        <span>Auto</span>
-      </button>
-    </div>
+<div id="stage">
+  <div id="zoomWrap">
+    <img id="pageImg" alt="">
+    <div id="pagePh"></div>
   </div>
-
-  <div id="img-area">
-    <!-- tap zones -->
-    <div id="tap-left"  onclick="handleTapLeft()"></div>
-    <div id="tap-right" onclick="handleTapRight()"></div>
-  </div>
-
-  <div id="hint">← Left quarter goes back &nbsp;·&nbsp; Right goes forward &nbsp;·&nbsp; Pinch to zoom</div>
-  <div id="soundbars">
-    <div class="bar" style="height:8px;animation-delay:0s"></div>
-    <div class="bar" style="height:14px;animation-delay:0.08s"></div>
-    <div class="bar" style="height:20px;animation-delay:0.16s"></div>
-    <div class="bar" style="height:14px;animation-delay:0.24s"></div>
-    <div class="bar" style="height:8px;animation-delay:0.32s"></div>
-  </div>
-  <div id="toast"></div>
-
-  <div id="bottombar">
-    <button class="nav-btn" id="btn-prev" onclick="goPrev()">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-    </button>
-    <div id="dots"></div>
-    <button class="nav-btn" id="btn-next" onclick="goNext()">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-    </button>
-  </div>
-
-  <div id="toc-overlay">
-    <div id="toc-header">
-      <h2>Pages</h2>
-      <button id="toc-close" onclick="toggleTOC()">✕</button>
-    </div>
-    <div id="toc-list"></div>
-  </div>
-
 </div>
+
+<div id="bar">
+  <a class="btn" id="homeBtn" href="index.html" aria-label="Back to library">⌂</a>
+  <div class="title" id="bookTitle"></div>
+  <button class="btn" id="langBtn" aria-label="Switch narration language">🇮🇪</button>
+  <button class="btn" id="soundBtn" aria-label="Play narration">🔊</button>
+  <button class="btn" id="autoBtn" aria-label="Auto-play">▶</button>
+  <button class="btn" id="tocBtn" aria-label="Show all pages">▦</button>
+</div>
+
+<button class="arrow" id="prevBtn" aria-label="Previous page">‹</button>
+<button class="arrow" id="nextBtn" aria-label="Next page">›</button>
+
+<div id="bottom">
+  <div id="dots"></div>
+  <div id="hint">Tap left quarter to go back · right to go forward · pinch to zoom · double-tap to reset</div>
+</div>
+
+<div id="toc">
+  <header>
+    <h2>Pages</h2>
+    <button class="btn" id="tocClose" aria-label="Close">✕</button>
+  </header>
+  <div id="tocGrid"></div>
+</div>
+
+<div id="err">
+  <div style="font-size:2rem">📚</div>
+  <div id="errMsg">Book not found.</div>
+  <a href="index.html">Back to the library</a>
+</div>
+
+<script src="books.js"></script>
 <script>
-// ══════════════════════════════════════════════
-// PAGE DATA
-// Replace svg(...) with "images/cover.jpg" etc
-// and add audio: "audio/cover.mp3" when ready
-// ══════════════════════════════════════════════
-function svg(bg1, bg2, emoji, title, sub) {
-  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 560">
-      <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="${bg1}"/>
-        <stop offset="100%" stop-color="${bg2}"/>
-      </linearGradient></defs>
-      <rect width="800" height="560" fill="url(#g)"/>
-      <text x="400" y="195" text-anchor="middle" font-size="88" font-family="serif">${emoji}</text>
-      <text x="400" y="288" text-anchor="middle" font-size="34" font-weight="bold" fill="white" font-family="Georgia,serif">${title}</text>
-      <text x="400" y="338" text-anchor="middle" font-size="19" fill="rgba(255,255,255,0.78)" font-family="Georgia,serif">${sub}</text>
-    </svg>`
-  );
-}
+(function(){
+  "use strict";
 
-const PAGES = [
-  { image: svg('#3a6d96','#1e3d5c','🐴','Why is the Sky Blue?','by Sally Grindley'),  audio: null, label: 'Cover' },
-  { image: svg('#5a8f52','#2d5228','🐇','Page 1','Rabbit came bounding across the field.'), audio: null, label: 'Page 1' },
-  { image: svg('#b8955a','#7a5c28','☁️','Page 2','"Why is the sky blue?" he asked.'), audio: null, label: 'Page 2' },
-  { image: svg('#6b5fa0','#3a306e','🌿','Page 3','Donkey chewed slowly on a piece of grass.'), audio: null, label: 'Page 3' },
-  { image: svg('#9e5050','#6e2020','📖','Page 4','"I will teach you," said Donkey.'), audio: null, label: 'Page 4' },
-  { image: svg('#4a9090','#1e5858','🌳','Page 5','"But you must sit still and listen."'), audio: null, label: 'Page 5' },
-  { image: svg('#a08840','#6a5810','🐇','Page 6','Rabbit tried very hard to sit still.'), audio: null, label: 'Page 6' },
-  { image: svg('#3a6e3a','#1a3e1a','🍃','Page 7','But it was very difficult indeed.'), audio: null, label: 'Page 7' },
-  { image: svg('#3a5a90','#1a2e60','☀️','Page 8','Donkey told Rabbit about the sun.'), audio: null, label: 'Page 8' },
-  { image: svg('#906030','#5a3000','🌅','Page 9','And about the light in the sky.'), audio: null, label: 'Page 9' },
-  { image: svg('#604090','#300060','✨','Page 10','Rabbit listened with wide eyes.'), audio: null, label: 'Page 10' },
-  { image: svg('#2e7a58','#0e4a30','🌙','Page 11','"Can I come back tomorrow?" asked Rabbit.'), audio: null, label: 'Page 11' },
-  { image: svg('#7a4838','#4a1808','💙','Page 12','"I missed why the sky is blue," said Rabbit.'), audio: null, label: 'Page 12' },
-  { image: svg('#3a6890','#1a3860','🤔','Page 13','"I really want to know why."'), audio: null, label: 'Page 13' },
-  { image: svg('#6a7a38','#3a4a08','🐴','Page 14','"I can only teach you if you sit still."'), audio: null, label: 'Page 14' },
-  { image: svg('#904858','#601828','🐇','Page 15','"I will sit still," said Rabbit.'), audio: null, label: 'Page 15' },
-  { image: svg('#2a8878','#0a4840','🌿','Page 16','"I will sit still and I will listen."'), audio: null, label: 'Page 16' },
-  { image: svg('#807050','#503e18','📚','Page 17','"Tomorrow I will teach you what I know."'), audio: null, label: 'Page 17' },
-  { image: svg('#404880','#101848','🎉','Page 18','Rabbit leapt in the air in excitement.'), audio: null, label: 'Page 18' },
-  { image: svg('#684878','#381848','🌈','Page 19','And ran and rolled and bounced...'), audio: null, label: 'Page 19' },
-  { image: svg('#2a6040','#0a3018','🍵','Page 20','All the way home to tea.'), audio: null, label: 'Page 20' },
-  { image: svg('#3a6d96','#1e3d5c','⭐','The End','Why is the Sky Blue?'), audio: null, label: 'The End' },
-];
+  /* ================= book setup ================= */
+  const params = new URLSearchParams(location.search);
+  const slug = params.get("book");
+  const book = (window.BOOKS || []).find(b => b.slug === slug);
 
-// ── State ──
-let current = 0, autoplay = false, soundOn = false, transitioning = false, autoTimer = null;
-let scale = 1, offX = 0, offY = 0;
-let lastDist = null, lastMX = 0, lastMY = 0;
-let dragging = false, dragSX = 0, dragSY = 0, dragOX = 0, dragOY = 0;
-let lastTap = 0, tapTimer = null;
-let audioEl = null;
+  if (!book) {
+    document.getElementById("err").style.display = "flex";
+    document.getElementById("errMsg").textContent =
+      slug ? 'No book called "' + slug + '" in books.js.' : "No book selected.";
+    return;
+  }
 
-// ── Init ──
-function init() {
-  buildDots();
-  buildTOC();
-  renderPage(0);
-  setupTouch();
-  setTimeout(() => { document.getElementById('hint').style.display = 'none'; }, 5000);
-}
+  document.title = book.title;
+  document.getElementById("bookTitle").textContent = book.title;
 
-// ── Render ──
-function renderPage(idx) {
-  const p = PAGES[idx];
-  const area = document.getElementById('img-area');
-  // Remove old img if present
-  const old = area.querySelector('img');
-  if (old) old.remove();
-  const img = document.createElement('img');
-  img.src = p.image;
-  img.alt = p.label;
-  img.draggable = false;
-  // Insert behind tap zones
-  area.insertBefore(img, area.firstChild);
-  document.getElementById('page-label').textContent = p.label;
-  document.getElementById('btn-prev').disabled = idx === 0;
-  document.getElementById('btn-next').disabled = idx === PAGES.length - 1;
-  updateDots();
-  updateTOC();
-}
+  const base = "books/" + book.slug;
+  // page names: cover, page1, page2, ... page(pageCount-1)
+  const PAGES = ["cover"];
+  for (let i = 1; i < book.pageCount; i++) PAGES.push("page" + i);
 
-// ── Navigation ──
-function goTo(idx) {
-  if (idx < 0 || idx >= PAGES.length || transitioning) return;
-  clearAutoTimer(); stopAudio();
-  transitioning = true;
-  const img = document.getElementById('img-area').querySelector('img');
-  if (img) img.classList.add('fade');
-  setTimeout(() => {
-    current = idx;
-    renderPage(idx);
+  const PASTELS = ["#ffd6e0","#cdeffd","#fff3c4","#d8f5d0","#e7dcff","#ffe3c9"];
+
+  /* ================= state ================= */
+  let cur = 0;                 // current page index
+  let lang = localStorage.getItem("storybook-lang") || "en";
+  if (!book.langs.includes(lang)) lang = book.langs[0];
+  let autoPlay = false;
+  let autoTimer = null;        // 3-second fallback timer
+  let audio = null;            // current Audio object
+  const AUTO_FALLBACK_MS = 3000;
+
+  /* ================= elements ================= */
+  const img      = document.getElementById("pageImg");
+  const ph       = document.getElementById("pagePh");
+  const zoomWrap = document.getElementById("zoomWrap");
+  const stage    = document.getElementById("stage");
+  const dotsBox  = document.getElementById("dots");
+  const langBtn  = document.getElementById("langBtn");
+  const soundBtn = document.getElementById("soundBtn");
+  const autoBtn  = document.getElementById("autoBtn");
+  const toc      = document.getElementById("toc");
+  const tocGrid  = document.getElementById("tocGrid");
+
+  /* ================= page rendering ================= */
+  function imgSrc(name){ return base + "/images/" + name + ".jpg"; }
+
+  function showPage(n){
+    cur = Math.max(0, Math.min(PAGES.length - 1, n));
     resetZoom();
-    transitioning = false;
-    if (autoplay) scheduleAutoAdvance();
-    if (soundOn && PAGES[idx].audio) playAudio(PAGES[idx].audio);
-  }, 220);
-}
+    stopAudio();
 
-function goNext() { if (current < PAGES.length - 1) goTo(current + 1); else if (autoplay) setAutoplay(false); }
-function goPrev() { if (current > 0) goTo(current - 1); }
+    const name = PAGES[cur];
+    ph.style.display = "none";
+    img.style.display = "block";
+    img.src = imgSrc(name);
+    img.onerror = () => {
+      // no image yet — friendly placeholder
+      img.style.display = "none";
+      ph.style.display = "flex";
+      ph.style.background = PASTELS[cur % PASTELS.length];
+      ph.textContent = book.title + "\n" + (cur === 0 ? "Cover" : "Page " + cur) +
+                       " — image not added yet";
+    };
 
-// ── Tap zones ──
-function handleTapLeft() {
-  if (scale > 1.05) return; // zoomed — no nav
-  goPrev();
-}
-
-function handleTapRight() {
-  if (scale > 1.05) return; // zoomed — no nav
-  // detect double-tap for zoom reset
-  const now = Date.now();
-  if (now - lastTap < 300) {
-    clearTimeout(tapTimer); tapTimer = null; lastTap = 0;
-    resetZoom(); return;
+    updateDots();
+    if (autoPlay) startAutoForPage();
   }
-  lastTap = now;
-  tapTimer = setTimeout(() => { tapTimer = null; goNext(); }, 300);
-}
 
-// ── Autoplay ──
-function scheduleAutoAdvance() {
-  clearAutoTimer();
-  if (PAGES[current].audio) return; // audio onended handles advance
-  autoTimer = setTimeout(() => { if (autoplay) goNext(); }, 3000);
-}
-
-function clearAutoTimer() {
-  if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
-}
-
-function setAutoplay(val) {
-  autoplay = val;
-  document.getElementById('btn-auto').classList.toggle('active', autoplay);
-  const icon = document.getElementById('auto-icon');
-  if (autoplay) {
-    icon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
-    scheduleAutoAdvance();
-  } else {
-    icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
-    clearAutoTimer();
-  }
-}
-function toggleAutoplay() { setAutoplay(!autoplay); }
-
-// ── Audio ──
-function playAudio(src) {
-  stopAudio();
-  audioEl = new Audio(src);
-  audioEl.onplay = () => document.getElementById('soundbars').classList.add('visible');
-  audioEl.onended = () => {
-    document.getElementById('soundbars').classList.remove('visible');
-    if (autoplay) goNext();
-  };
-  audioEl.onerror = () => {
-    document.getElementById('soundbars').classList.remove('visible');
-    showToast('⚠️ Audio needs a web server to play (works on GitHub Pages)');
-    if (autoplay) scheduleAutoAdvance();
-  };
-  audioEl.play().catch(() => {
-    showToast('⚠️ Audio needs a web server to play (works on GitHub Pages)');
-  });
-}
-
-function stopAudio() {
-  if (audioEl) { audioEl.pause(); audioEl = null; }
-  document.getElementById('soundbars').classList.remove('visible');
-}
-
-function toggleSound() {
-  soundOn = !soundOn;
-  document.getElementById('btn-sound').classList.toggle('active', soundOn);
-  if (soundOn && PAGES[current].audio) playAudio(PAGES[current].audio);
-  else stopAudio();
-}
-
-// ── Toast ──
-let toastTimer = null;
-function showToast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
-}
-
-// ── Dots ──
-function buildDots() {
-  const c = document.getElementById('dots');
-  c.innerHTML = '';
+  /* ================= dots ================= */
   PAGES.forEach((_, i) => {
-    const d = document.createElement('div');
-    d.className = 'dot' + (i===0?' active':'');
-    d.style.width = i===0?'20px':'7px';
-    d.onclick = (e) => { e.stopPropagation(); closeTOC(); goTo(i); };
-    c.appendChild(d);
+    const d = document.createElement("i");
+    d.addEventListener("click", e => { e.stopPropagation(); showPage(i); });
+    dotsBox.appendChild(d);
   });
-}
-function updateDots() {
-  document.querySelectorAll('.dot').forEach((d,i) => {
-    d.classList.toggle('active', i===current);
-    d.style.width = i===current?'20px':'7px';
+  function updateDots(){
+    [...dotsBox.children].forEach((d, i) => d.classList.toggle("cur", i === cur));
+  }
+
+  /* ================= audio ================= */
+  function audioSrc(name){ return base + "/audio/" + lang + "/" + name + ".mp3"; }
+
+  function stopAudio(){
+    if (audio) { audio.onended = audio.onerror = null; audio.pause(); audio = null; }
+    if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+  }
+
+  // Play this page's narration. onDone (optional) runs when it finishes
+  // or immediately-ish if the file doesn't exist.
+  function playCurrent(onDone){
+    stopAudio();
+    audio = new Audio(audioSrc(PAGES[cur]));
+    audio.onended = () => { audio = null; if (onDone) onDone(); };
+    audio.onerror = () => { audio = null; if (onDone) onDone(false); };
+    audio.play().catch(() => { audio = null; if (onDone) onDone(false); });
+  }
+
+  soundBtn.addEventListener("click", e => { e.stopPropagation(); playCurrent(); });
+
+  /* ================= language toggle ================= */
+  function renderLang(){ langBtn.textContent = lang === "en" ? "🇮🇪" : "🇪🇸"; }
+  langBtn.addEventListener("click", e => {
+    e.stopPropagation();
+    const i = book.langs.indexOf(lang);
+    lang = book.langs[(i + 1) % book.langs.length];
+    localStorage.setItem("storybook-lang", lang);
+    renderLang();
+    stopAudio();
+    if (autoPlay) startAutoForPage();   // restart narration in new language
   });
-}
+  renderLang();
 
-// ── TOC ──
-function buildTOC() {
-  const list = document.getElementById('toc-list');
-  list.innerHTML = '';
-  PAGES.forEach((p,i) => {
-    const item = document.createElement('div');
-    item.className = 'toc-item' + (i===0?' current':'');
-    item.id = 'toc-item-' + i;
-    item.innerHTML = `<span class="toc-num">${String(i).padStart(2,'0')}</span><span class="toc-label">${p.label}</span>`;
-    item.onclick = () => { closeTOC(); goTo(i); };
-    list.appendChild(item);
+  /* ================= auto-play ================= */
+  function startAutoForPage(){
+    playCurrent(played => {
+      if (!autoPlay) return;
+      if (played === false) {
+        // no audio file — wait 3 seconds, then turn the page
+        autoTimer = setTimeout(advanceAuto, AUTO_FALLBACK_MS);
+      } else {
+        advanceAuto();
+      }
+    });
+  }
+  function advanceAuto(){
+    if (!autoPlay) return;
+    if (cur < PAGES.length - 1) showPage(cur + 1);
+    else setAuto(false);                 // reached the end
+  }
+  function setAuto(on){
+    autoPlay = on;
+    autoBtn.classList.toggle("on", on);
+    autoBtn.textContent = on ? "⏸" : "▶";
+    if (on) startAutoForPage(); else stopAudio();
+  }
+  autoBtn.addEventListener("click", e => { e.stopPropagation(); setAuto(!autoPlay); });
+
+  /* ================= table of contents ================= */
+  PAGES.forEach((name, i) => {
+    const b = document.createElement("button");
+    b.className = "tocItem";
+    const th = document.createElement("div");
+    th.className = "thumb";
+    const ti = document.createElement("img");
+    ti.loading = "lazy";
+    ti.src = imgSrc(name);
+    ti.alt = "";
+    ti.onerror = () => { ti.remove(); th.textContent = i === 0 ? "Cover" : i; };
+    th.appendChild(ti);
+    const lbl = document.createElement("span");
+    lbl.textContent = i === 0 ? "Cover" : "Page " + i;
+    b.appendChild(th); b.appendChild(lbl);
+    b.addEventListener("click", () => { toc.classList.remove("open"); showPage(i); });
+    tocGrid.appendChild(b);
   });
-}
-function updateTOC() {
-  document.querySelectorAll('.toc-item').forEach((el,i) => el.classList.toggle('current', i===current));
-}
-function toggleTOC() { document.getElementById('toc-overlay').classList.toggle('open'); }
-function closeTOC()  { document.getElementById('toc-overlay').classList.remove('open'); }
+  function refreshTocHighlight(){
+    [...tocGrid.children].forEach((b, i) => b.classList.toggle("cur", i === cur));
+  }
+  document.getElementById("tocBtn").addEventListener("click", e => {
+    e.stopPropagation(); refreshTocHighlight(); toc.classList.add("open");
+  });
+  document.getElementById("tocClose").addEventListener("click", () => toc.classList.remove("open"));
 
-// ── Pinch zoom ──
-function getImg() { return document.getElementById('img-area').querySelector('img'); }
-function resetZoom() { scale=1; offX=0; offY=0; applyTransform(); }
-function applyTransform() {
-  const el = getImg();
-  if (el) el.style.transform = `scale(${scale}) translate(${offX/scale}px,${offY/scale}px)`;
-}
+  /* ================= navigation ================= */
+  document.getElementById("prevBtn").addEventListener("click", e => { e.stopPropagation(); showPage(cur - 1); });
+  document.getElementById("nextBtn").addEventListener("click", e => { e.stopPropagation(); showPage(cur + 1); });
 
-function setupTouch() {
-  const area = document.getElementById('img-area');
-  area.addEventListener('touchstart', (e) => {
+  /* ================= zoom & tap handling =================
+     - pinch to zoom (1x–4x), one-finger pan while zoomed
+     - double-tap resets zoom
+     - taps only turn pages when NOT zoomed and NOT right after a pinch
+  */
+  let scale = 1, tx = 0, ty = 0;
+  let pinching = false, pinchStartDist = 0, pinchStartScale = 1;
+  let panStart = null, lastTapTime = 0, suppressTapUntil = 0;
+
+  function applyTransform(){
+    zoomWrap.style.transform = "translate(" + tx + "px," + ty + "px) scale(" + scale + ")";
+  }
+  function resetZoom(){ scale = 1; tx = 0; ty = 0; applyTransform(); }
+
+  function clampPan(){
+    // keep the image loosely on screen while panning
+    const limX = (scale - 1) * window.innerWidth;
+    const limY = (scale - 1) * window.innerHeight;
+    tx = Math.max(-limX, Math.min(limX * 0.2 + 40, tx));
+    ty = Math.max(-limY, Math.min(limY * 0.2 + 40, ty));
+  }
+
+  function dist(t){ return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY); }
+
+  stage.addEventListener("touchstart", e => {
     if (e.touches.length === 2) {
-      const t0=e.touches[0], t1=e.touches[1];
-      lastDist = Math.hypot(t0.clientX-t1.clientX, t0.clientY-t1.clientY);
-      lastMX=(t0.clientX+t1.clientX)/2; lastMY=(t0.clientY+t1.clientY)/2;
+      pinching = true;
+      pinchStartDist = dist(e.touches);
+      pinchStartScale = scale;
     } else if (e.touches.length === 1 && scale > 1) {
-      dragging=true; dragSX=e.touches[0].clientX; dragSY=e.touches[0].clientY;
-      dragOX=offX; dragOY=offY;
+      panStart = { x: e.touches[0].clientX - tx, y: e.touches[0].clientY - ty };
     }
-  }, {passive:true});
+  }, { passive: true });
 
-  area.addEventListener('touchmove', (e) => {
-    if (e.touches.length === 2 && lastDist) {
-      e.preventDefault();
-      const t0=e.touches[0], t1=e.touches[1];
-      const d=Math.hypot(t0.clientX-t1.clientX, t0.clientY-t1.clientY);
-      const mx=(t0.clientX+t1.clientX)/2, my=(t0.clientY+t1.clientY)/2;
-      scale=Math.min(4, Math.max(1, scale*(d/lastDist)));
-      offX+=mx-lastMX; offY+=my-lastMY;
-      lastDist=d; lastMX=mx; lastMY=my;
-      applyTransform();
-    } else if (e.touches.length === 1 && dragging) {
-      e.preventDefault();
-      offX=dragOX+(e.touches[0].clientX-dragSX);
-      offY=dragOY+(e.touches[0].clientY-dragSY);
-      applyTransform();
+  stage.addEventListener("touchmove", e => {
+    if (pinching && e.touches.length === 2) {
+      scale = Math.max(1, Math.min(4, pinchStartScale * dist(e.touches) / pinchStartDist));
+      clampPan(); applyTransform();
+    } else if (panStart && e.touches.length === 1 && scale > 1) {
+      tx = e.touches[0].clientX - panStart.x;
+      ty = e.touches[0].clientY - panStart.y;
+      clampPan(); applyTransform();
     }
-  }, {passive:false});
+    e.preventDefault();
+  }, { passive: false });
 
-  area.addEventListener('touchend', () => {
-    lastDist=null; dragging=false;
-    if (scale < 1.05) resetZoom();
+  stage.addEventListener("touchend", e => {
+    if (pinching && e.touches.length < 2) {
+      pinching = false;
+      suppressTapUntil = Date.now() + 400;   // ignore the tap that ends a pinch
+      if (scale <= 1.05) resetZoom();
+    }
+    if (e.touches.length === 0) panStart = null;
   });
-}
 
-init();
+  // tap = double-tap reset / page turn (only when not zoomed)
+  stage.addEventListener("click", e => {
+    const now = Date.now();
+    if (now < suppressTapUntil) return;
+
+    if (now - lastTapTime < 300) {          // double tap → reset zoom
+      lastTapTime = 0;
+      resetZoom();
+      return;
+    }
+    lastTapTime = now;
+    const myTap = now;
+
+    if (scale > 1) return;                  // zoomed in → taps never turn pages
+
+    // single tap: left 25% back, right 75% forward
+    // (short delay so a double-tap can cancel it)
+    const x = e.clientX;
+    setTimeout(() => {
+      if (lastTapTime === myTap) {          // no second tap arrived → it was a single tap
+        if (x < window.innerWidth * 0.25) showPage(cur - 1);
+        else showPage(cur + 1);
+      }
+    }, 300);
+  });
+
+  // keyboard support for desktop testing
+  document.addEventListener("keydown", e => {
+    if (e.key === "ArrowLeft") showPage(cur - 1);
+    if (e.key === "ArrowRight") showPage(cur + 1);
+  });
+
+  /* ================= go ================= */
+  showPage(0);
+})();
 </script>
 </body>
 </html>
